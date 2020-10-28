@@ -12,7 +12,7 @@ form {
 }
 </style>
 <head>
-    <title>Bike Usage Model</title>
+    <title>Inventory Sales Model</title>
 </head>
 <form action="{{ url_for('main') }}" method="POST">
     <fieldset>
@@ -28,9 +28,13 @@ form {
 </form>
 <br>
 <div class="result" align="center">
-    
-        <br> Predicted number of bikes in use:
+    {% if result %}
+        {% for variable, value in original_input.items() %}
+            <b>{{ variable }}</b> : {{ value }}
+        {% endfor %}
+        <br>
+        <br> Predicted sales:
            <p style="font-size:50px">{{ result }}</p>
-    
+    {% endif %}
 </div>
 </html>

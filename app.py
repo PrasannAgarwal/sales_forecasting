@@ -30,11 +30,11 @@ app = flask.Flask(__name__, template_folder='templates')
 def main():
 	if (flask.request.method == 'GET'):
 		return (flask.render_template('main.html'))
-    if (flask.request.method == 'POST'):
-    	item_id=flask.request.form['item_id']
+	if (flask.request.method == 'POST'):
+		item_id=flask.request.form['item_id']
 		firm_id=flask.request.form['firm_id']
 		res=pred.sales_forecast(item_id,firm_id)
-		return (flask.render_template('main.html',result=res))
+		return flask.render_template('main.html',original_input={'item_id':item_id,'firm_id':firm_id},result=res,)
 
 # class fc(Resource):
 #     def get(self, first_number, second_number):
