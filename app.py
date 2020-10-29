@@ -1,3 +1,4 @@
+import grid
 import pred
 import flask
 import flask_restful
@@ -14,7 +15,7 @@ from pandas.plotting import register_matplotlib_converters
 from statsmodels.tsa.stattools import acf, pacf
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 register_matplotlib_converters()
-from time import time
+import time
 from math import sqrt
 from multiprocessing import cpu_count
 from joblib import Parallel
@@ -22,11 +23,24 @@ from joblib import delayed
 from warnings import catch_warnings
 from warnings import filterwarnings
 from sklearn.metrics import mean_squared_error
+from threading import Thread
+
 
 app = flask.Flask(__name__, template_folder='templates')
 # api = Api(app)
 
-@app.route('/', methods=['GET','POST'])
+@app.route('/grid', methods=['GET','POST'])
+def main2():
+	if (flask.request.method == 'GET'):
+		return (flask.render_template('main_2.html'))
+	if (flask.request.method == 'POST'):
+		item_id=flask.request.form['item_id']
+		firm_id=flask.request.form['firm_id']
+		t = Thread(target = grid.user_inp_grid_search, args=(item_id,firm_id),)
+		t.start()
+		return flask.render_template('main_2.html',original_input={'item_id':item_id,'firm_id':firm_id},result="200! Request received",)
+
+@app.route('/predict', methods=['GET','POST'])
 def main():
 	if (flask.request.method == 'GET'):
 		return (flask.render_template('main.html'))
