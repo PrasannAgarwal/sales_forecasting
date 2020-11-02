@@ -2,7 +2,9 @@ import math
 import json
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import warnings
+warnings.filterwarnings("ignore")
+#import matplotlib.pyplot as plt
 from datetime import datetime
 from datetime import timedelta
 from pandas.plotting import register_matplotlib_converters
@@ -28,6 +30,8 @@ def data_pts_chk(num):
         return True
 
 def sales_forecast(item_id,firm_id):
+    item_id=int(item_id)
+    firm_id=int(firm_id)
     versa_sales = pd.read_csv(r"C:\Users\prasa\Documents\programs\demo_sales_fc\data_updated22-09.csv", parse_dates=[4], index_col=0, squeeze=True, date_parser=parser)
 
     parameters=pd.read_csv(r"C:\Users\prasa\Documents\programs\demo_sales_fc\parameters.csv")
@@ -43,7 +47,7 @@ def sales_forecast(item_id,firm_id):
     versa_sales2=versa_sales1.groupby(versa_sales1["transaction_date"], as_index=False).agg({'delta': np.sum})
     #if versa_sales2["id"].count()<12:
     #    return "error"
-    r = pd.date_range(start=versa_sales2.transaction_date.min(), end=versa_sales2.transaction_date.max())
+    r = pd.date_range(start=versa_sales2.transaction_date.min(), end=versa_sales2.transaction_date.max(), freq='M')
     versa_sales3=versa_sales2.set_index('transaction_date').reindex(r).fillna(0.0).rename_axis('transaction_date').reset_index()
     
     versa_sales_monthly = versa_sales3.groupby(versa_sales3.transaction_date.dt.to_period("M")).agg({'delta': np.sum})
@@ -79,13 +83,13 @@ def sales_forecast(item_id,firm_id):
     #return predictions
     
     if d==0:
-        return predictions
+        resp1=predictions.to_json(orient='table')
+        return str(resp1)
     else:
         res=pd.Series()
         initial_val=versa_sm['delta'][-1]
         for i in range(len(predictions)):
             res=res.append(pd.Series((initial_val+predictions[i]),index=[predictions.index[i]]))
             initial_val=initial_val+predictions[i]
-        return res
-
-#print(sales_forecast(-1,568))
+        resp2=res.to_json(orient='table')
+        return str(resp2)
