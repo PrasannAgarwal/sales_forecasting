@@ -1,5 +1,6 @@
 import math
 import json
+from os import stat
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -36,10 +37,11 @@ def adfuller_test(sales):
     for value,label in zip(result,labels):
         print(label+' : '+str(value) )
     if result[1] <= 0.05:
-        print("strong evidence against the null hypothesis(Ho), reject the null hypothesis. Data has no unit root and is stationary")
+        #print("strong evidence against the null hypothesis(Ho), reject the null hypothesis. Data has no unit root and is stationary")
+        return 1
     else:
-        print("weak evidence against null hypothesis, time series has a unit root, indicating it is non-stationary ")
-
+        #print("weak evidence against null hypothesis, time series has a unit root, indicating it is non-stationary ")
+        return 0
 def sarima_configs(seasonal=[0]):
 	models = list()
 	# define config lists
@@ -149,32 +151,42 @@ def user_inp_grid_search(item_id,firm_id):
     #    return "error"
     r = pd.date_range(start=versa_sales2.transaction_date.min(), end=versa_sales2.transaction_date.max())
     versa_sales3=versa_sales2.set_index('transaction_date').reindex(r).fillna(0.0).rename_axis('transaction_date').reset_index()
-    
+
     versa_sales_monthly = versa_sales3.groupby(versa_sales3.transaction_date.dt.to_period("M")).agg({'delta': np.sum})
     versa_sales_monthly["date"]=versa_sales_monthly.index
     versa_sales_monthly2=versa_sales_monthly.reset_index(inplace = True)
     versa_sales_monthly=versa_sales_monthly.drop('date',axis=1)
-    
+
     versa_sales_monthly.transaction_date = versa_sales_monthly.transaction_date.map(str)
     versa_sales_monthly['transaction_date']=pd.to_datetime(versa_sales_monthly['transaction_date'])
     versa_sm=versa_sales_monthly.set_index('transaction_date')
-    #test_result=adfuller(versa_sm["delta"])
-    adfuller_test(versa_sm['delta'])
+    first_diff = versa_sm.diff()[1:]
+
+    #SHOULD CHANGE THE CODE..ROUGH CODE TO SELECT THE DATAFRAME TO TAKE AS TRAIN AND TEST
+
+    test_result=adfuller(versa_sm["delta"])
+    stationary = adfuller_test(versa_sm['delta'])
+    if stationary == 1:
+        train_data = versa_sm[(versa_sm.index<'2020-01-01 00:00:00')]
+        test_data = versa_sm[(versa_sm.index>='2020-01-01 00:00:00')]
+    else:
+        test_result=adfuller(first_diff["delta"])
+        stationary = adfuller_test(first_diff['delta'])
+        if stationary == 1:
+            train_data = first_diff[(first_diff.index<'2020-01-01 00:00:00')]
+            test_data = first_diff[(first_diff.index>='2020-01-01 00:00:00')]     
 
 
-    #SHOULD ADD CODE TO SELECT WHICH DATAFRAME TO TAKE
-    
     # train_data = versa_sm[(versa_sm.index<'2014-05-01')]
     # test_data = versa_sm[(versa_sm.index>='2014-05-01')]
 
-    train_data = first_diff[(first_diff.index<'2020-01-01 00:00:00')]
-    test_data = first_diff[(first_diff.index>='2020-01-01 00:00:00')]
+
     cfg_list = sarima_configs(seasonal=[0,2,3,4,6,9,12])
     # grid search
     scores = grid_search(train_data, test_data, cfg_list)
     #print('done')
     # list top 3 configs
     for cfg, error in scores[:3]:
-    #print(cfg, error)
-
+        print(cfg, error)
+    #return scores[0]
     #scores[0] needs to be saved in the db.
