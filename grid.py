@@ -24,7 +24,7 @@ def parser(s):
     return datetime.strptime(s, '%Y-%m-%d')
 
 def data_pts_chk(num):
-    if(num<12):
+    if(num<15):
         return False
     else:
         return True
@@ -136,6 +136,9 @@ def user_inp_grid_search(item_id,firm_id):
     # time.sleep(10)
     # print("Hi")
     # return 0
+    item_id=int(item_id)
+    firm_id=int(firm_id)
+    
     versa_sales = pd.read_csv(r"C:\code\ml_inventory\sales_forecasting-main\data_updated22-09.csv", parse_dates=[4], index_col=0, squeeze=True, date_parser=parser)
     versa_sales1 = versa_sales[versa_sales["delta"]<0]
     if item_id!=-1:
@@ -161,25 +164,37 @@ def user_inp_grid_search(item_id,firm_id):
     versa_sales_monthly['transaction_date']=pd.to_datetime(versa_sales_monthly['transaction_date'])
     versa_sm=versa_sales_monthly.set_index('transaction_date')
     first_diff = versa_sm.diff()[1:]
+    
+    flag =0
+    current_time = datetime.now()
+    versa_maxyear = (versa_sales2.transaction_date.max()).year
+    if current_time.year-versa_maxyear > 1:
+        flag = -1
+        print(flag)
+        return 0
 
     #SHOULD CHANGE THE CODE..ROUGH CODE TO SELECT THE DATAFRAME TO TAKE AS TRAIN AND TEST
 
     test_result=adfuller(versa_sm["delta"])
     stationary = adfuller_test(versa_sm['delta'])
+    total_size=len(versa_sm)
+    train_size=math.floor(0.8*total_size)
     if stationary == 1:
-        train_data = versa_sm[(versa_sm.index<'2020-01-01 00:00:00')]
-        test_data = versa_sm[(versa_sm.index>='2020-01-01 00:00:00')]
+        # train_data = versa_sm[(versa_sm.index<'2020-01-01 00:00:00')]
+        # test_data = versa_sm[(versa_sm.index>='2020-01-01 00:00:00')]
+        train_data = versa_sm.head(train_size)
+        test_data = versa_sm.tail(len(versa_sm) -train_size)
     else:
         test_result=adfuller(first_diff["delta"])
         stationary = adfuller_test(first_diff['delta'])
         if stationary == 1:
-            train_data = first_diff[(first_diff.index<'2020-01-01 00:00:00')]
-            test_data = first_diff[(first_diff.index>='2020-01-01 00:00:00')]     
-
+            # train_data = first_diff[(first_diff.index<'2020-01-01 00:00:00')]
+            # test_data = first_diff[(first_diff.index>='2020-01-01 00:00:00')]     
+            train_data = first_diff.head(train_size)
+            test_data = first_diff.tail(len(first_diff) -train_size)
 
     # train_data = versa_sm[(versa_sm.index<'2014-05-01')]
     # test_data = versa_sm[(versa_sm.index>='2014-05-01')]
-
 
     cfg_list = sarima_configs(seasonal=[0,2,3,4,6,9,12])
     # grid search
