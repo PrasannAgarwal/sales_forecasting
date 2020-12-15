@@ -19,6 +19,8 @@ from warnings import catch_warnings
 from warnings import filterwarnings
 from sklearn.metrics import mean_squared_error
 from statsmodels.tsa.stattools import adfuller
+import sqlalchemy
+import psycopg2
 
 def parser(s):
     return datetime.strptime(s, '%Y-%m-%d')
@@ -98,7 +100,7 @@ def walk_forward_validation(train_data, test_data, cfg):
 def score_model(train_data, test_data, cfg, debug=False):
 	result = None
 	# convert config to a key
-	key = str(cfg)
+	key = cfg
 	# show all warnings and fail on exception if debugging
 	if debug:
 		result = walk_forward_validation(train_data, test_data, cfg)
@@ -132,49 +134,49 @@ def grid_search(train_data, test_data, cfg_list, parallel=True):
 	return scores
 
 
-def user_inp_grid_search(item_id,firm_id):
+def user_inp_grid_search(item_id,firm_id,versa_sm):
     # time.sleep(10)
     # print("Hi")
     # return 0
     item_id=int(item_id)
     firm_id=int(firm_id)
     
-    versa_sales = pd.read_csv(r"C:\code\ml_inventory\sales_forecasting-main\data_updated22-09.csv", parse_dates=[4], index_col=0, squeeze=True, date_parser=parser)
-    versa_sales1 = versa_sales[versa_sales["delta"]<0]
-    if item_id!=-1:
-        versa_sales1 = versa_sales1[(versa_sales1["inventory_item_id"]==item_id)]
-    if firm_id!=-1:
-        versa_sales1 = versa_sales1[(versa_sales1["firm_id"]==firm_id)]
-    #print(versa_sales1)
-    cols=[2,3,4]
-    versa_sales1=versa_sales1[versa_sales1.columns[cols]]
-    versa_sales1["delta"]=versa_sales1["delta"].abs()
-    versa_sales2=versa_sales1.groupby(versa_sales1["transaction_date"], as_index=False).agg({'delta': np.sum})
-    #if versa_sales2["id"].count()<12:
-    #    return "error"
-    r = pd.date_range(start=versa_sales2.transaction_date.min(), end=versa_sales2.transaction_date.max())
-    versa_sales3=versa_sales2.set_index('transaction_date').reindex(r).fillna(0.0).rename_axis('transaction_date').reset_index()
+    # versa_sales = pd.read_csv(r"C:\code\ml_inventory\sales_forecasting-main\data_updated22-09.csv", parse_dates=[4], index_col=0, squeeze=True, date_parser=parser)
+    # versa_sales1 = versa_sales[versa_sales["delta"]<0]
+    # if item_id!=-1:
+    #     versa_sales1 = versa_sales1[(versa_sales1["inventory_item_id"]==item_id)]
+    # if firm_id!=-1:
+    #     versa_sales1 = versa_sales1[(versa_sales1["firm_id"]==firm_id)]
+    # #print(versa_sales1)
+    # cols=[2,3,4]
+    # versa_sales1=versa_sales1[versa_sales1.columns[cols]]
+    # versa_sales1["delta"]=versa_sales1["delta"].abs()
+    # versa_sales2=versa_sales1.groupby(versa_sales1["transaction_date"], as_index=False).agg({'delta': np.sum})
+    # #if versa_sales2["id"].count()<12:
+    # #    return "error"
+    # r = pd.date_range(start=versa_sales2.transaction_date.min(), end=versa_sales2.transaction_date.max())
+    # versa_sales3=versa_sales2.set_index('transaction_date').reindex(r).fillna(0.0).rename_axis('transaction_date').reset_index()
 
-    versa_sales_monthly = versa_sales3.groupby(versa_sales3.transaction_date.dt.to_period("M")).agg({'delta': np.sum})
-    versa_sales_monthly["date"]=versa_sales_monthly.index
-    versa_sales_monthly2=versa_sales_monthly.reset_index(inplace = True)
-    versa_sales_monthly=versa_sales_monthly.drop('date',axis=1)
+    # versa_sales_monthly = versa_sales3.groupby(versa_sales3.transaction_date.dt.to_period("M")).agg({'delta': np.sum})
+    # versa_sales_monthly["date"]=versa_sales_monthly.index
+    # versa_sales_monthly2=versa_sales_monthly.reset_index(inplace = True)
+    # versa_sales_monthly=versa_sales_monthly.drop('date',axis=1)
 
-    versa_sales_monthly.transaction_date = versa_sales_monthly.transaction_date.map(str)
-    versa_sales_monthly['transaction_date']=pd.to_datetime(versa_sales_monthly['transaction_date'])
-    versa_sm=versa_sales_monthly.set_index('transaction_date')
-    first_diff = versa_sm.diff()[1:]
+    # versa_sales_monthly.transaction_date = versa_sales_monthly.transaction_date.map(str)
+    # versa_sales_monthly['transaction_date']=pd.to_datetime(versa_sales_monthly['transaction_date'])
+    # versa_sm=versa_sales_monthly.set_index('transaction_date')
+    # first_diff = versa_sm.diff()[1:]
     
-    flag =0
-    current_time = datetime.now()
-    versa_maxyear = (versa_sales2.transaction_date.max()).year
-    if current_time.year-versa_maxyear > 1:
-        flag = -1
-        print(flag)
-        return 0
+    # flag =0
+    # current_time = datetime.now()
+    # versa_maxyear = (versa_sales2.transaction_date.max()).year
+    # if current_time.year-versa_maxyear > 1:
+    #     flag = -1
+    #     print(flag)
+    #     return 0
 
     #SHOULD CHANGE THE CODE..ROUGH CODE TO SELECT THE DATAFRAME TO TAKE AS TRAIN AND TEST
-
+    d=-1
     test_result=adfuller(versa_sm["delta"])
     stationary = adfuller_test(versa_sm['delta'])
     total_size=len(versa_sm)
@@ -182,6 +184,7 @@ def user_inp_grid_search(item_id,firm_id):
     if stationary == 1:
         # train_data = versa_sm[(versa_sm.index<'2020-01-01 00:00:00')]
         # test_data = versa_sm[(versa_sm.index>='2020-01-01 00:00:00')]
+        d=0
         train_data = versa_sm.head(train_size)
         test_data = versa_sm.tail(len(versa_sm) -train_size)
     else:
@@ -189,19 +192,46 @@ def user_inp_grid_search(item_id,firm_id):
         stationary = adfuller_test(first_diff['delta'])
         if stationary == 1:
             # train_data = first_diff[(first_diff.index<'2020-01-01 00:00:00')]
-            # test_data = first_diff[(first_diff.index>='2020-01-01 00:00:00')]     
+            # test_data = first_diff[(first_diff.index>='2020-01-01 00:00:00')]
+            d=1     
             train_data = first_diff.head(train_size)
             test_data = first_diff.tail(len(first_diff) -train_size)
+        else:
+        	d=2
 
     # train_data = versa_sm[(versa_sm.index<'2014-05-01')]
     # test_data = versa_sm[(versa_sm.index>='2014-05-01')]
-
     cfg_list = sarima_configs(seasonal=[0,2,3,4,6,9,12])
     # grid search
     scores = grid_search(train_data, test_data, cfg_list)
     #print('done')
     # list top 3 configs
     for cfg, error in scores[:3]:
-        print(cfg, error)
+    	print(cfg, error)
+    minpara=scores[0][0]
+    print(minpara)
+    print(type(minpara))
+    p=minpara[0][0]
+    #d=cfg[0][1]
+    q=minpara[0][2]
+    seasonal_p=minpara[1][0]
+    seasonal_d=minpara[1][1]
+    seasonal_q=minpara[1][2]
+    s=minpara[1][3]
+    conn = psycopg2.connect(
+    	database="versa_db_2",
+    	user="postgres",
+    	password="1997",
+    	host="localhost",
+    	port="5432"
+    	)
+    cur= conn.cursor()
+    #cur.execute("DELETE from forecasting_parameters WHERE inventory_item_id")
+    cur.execute("UPDATE forecasting_parameters SET p = %s ,d = %s ,q = %s,seasonal_p = %s,seasonal_d = %s,seasonal_q = %s,s = %s,flag = %s WHERE inventory_item_id = %s AND firm_id = %s",(p,d,q,seasonal_p,seasonal_d,seasonal_q,s,1,item_id,firm_id))
+    #%{'p': p, 'd': d, 'q': q, 'P': P, 'D': D, 'Q': Q, 's': s, 'item_id': item_id, 'firm_id': firm_id})
+    conn.commit()
+    cur.close()
+    conn.close()
+    return 0
     #return scores[0]
     #scores[0] needs to be saved in the db.
